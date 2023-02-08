@@ -5,6 +5,7 @@
 #define WIDTH 11
 #define HEIGHT 20
 #define RESIZE_FACTOR 4
+#define DEFAULT_GAME_SPEED 15
 
 
 #define I_SHAPE 'i'

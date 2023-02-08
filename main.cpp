@@ -60,16 +60,24 @@ void	drawMatrix(map_t &matrix, sf::RenderWindow &window,
 	}
 }
 
-void	clearLine(map_t &matrix, int y)
+void	clearLine(map_t &matrix, int y, unsigned int nbLineCleared)
 {
 	for (int j = y; j > 0; --j)
 	{
 		for (int i = 0; i < WIDTH; ++i)
 			at(matrix, i, j) = at(matrix, i, j - 1);
 	}
+	++nbLineCleared;
 }
 
-void	checkMatrix(map_t &matrix, bool &playing)
+void	resetMatrix(map_t &matrix, unsigned int nbLineCleared)
+{
+	for (int i = 0; i < WIDTH * HEIGHT; ++i)
+		matrix[i] = 0;
+	nbLineCleared = 0;
+}
+
+void	checkMatrix(map_t &matrix, bool &playing, unsigned int nbLineCleared)
 {
 	for (int y = 0; y < HEIGHT; ++y)
 	{
@@ -77,9 +85,12 @@ void	checkMatrix(map_t &matrix, bool &playing)
 		for (int x = 0; x < WIDTH; ++x)
 			tiles += (at(matrix, x, y) != 0);
 		if (tiles && !y)
+		{
 			playing = false;
-		if (tiles == WIDTH)
-			clearLine(matrix, y);
+			resetMatrix(matrix, nbLineCleared);
+		}
+		else if (tiles == WIDTH)
+			clearLine(matrix, y, nbLineCleared);
 	}
 }
 
@@ -93,6 +104,7 @@ int main()
 	map_t matrix = {};
 
 	unsigned char timer = 0, gamespeed = 10;
+	unsigned int  nbLineCleared = 0;
 	const unsigned char shapes[] = {I_SHAPE, O_SHAPE, T_SHAPE, L_SHAPE, J_SHAPE, Z_SHAPE, S_SHAPE};
 
 	sf::Texture texture;
@@ -118,6 +130,8 @@ int main()
 					break;
 				}
 				case (sf::Event::KeyPressed):
+					if (!playing && event.key.code != sf::Keyboard::P)
+						break;
 					if (event.key.code == sf::Keyboard::Right)
 						tetromino.moveRight(matrix);
 					else if (event.key.code == sf::Keyboard::Left)
@@ -127,21 +141,19 @@ int main()
 					else if (event.key.code == sf::Keyboard::R)
 						tetromino.doRotate(matrix);
 					else if (event.key.code == sf::Keyboard::P)
-						playing = 0;
+						playing = 1 - playing;
 					break;
 				case (sf::Event::KeyReleased):
 					if (event.key.code == sf::Keyboard::Down)
-						gamespeed = 10;
-				
+						gamespeed = DEFAULT_GAME_SPEED;
 				default:
 					break;
 			}
         }
 
 		window.clear();
+		checkMatrix(matrix, playing, nbLineCleared);
 		drawMatrix(matrix, window, cell, tetromino);
-		window.display();
-		checkMatrix(matrix, playing);
 		if (timer > gamespeed && playing)
 		{
 			tetromino.moveDown(matrix);
@@ -149,6 +161,7 @@ int main()
 		}
 		else
 			timer++;
+		window.display();
 		// sf::sleep(sf::milliseconds(200));
     }
 

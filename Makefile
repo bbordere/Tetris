@@ -1,7 +1,7 @@
 # CXX = x86_64-w64-mingw32-g++
 CXX = c++
 
-CXXFLAGS = -Wall -Wextra -Werror -I includes/ -Ilib/SFML_LINUX/include -Llib/SFML_LINUX/lib -lsfml-graphics -lsfml-window -lsfml-system -g3
+CXXFLAGS = -Wall -Wextra -Werror -I includes/ -g3 -Ilib/include
 
 FILES = main.cpp Tetromino.cpp
 
@@ -15,7 +15,7 @@ NAME = tetris
 all: $(NAME)
 
 $(NAME): $(OBJS)
-	$(CXX) $(OBJS) $(CXXFLAGS) -o $(NAME)
+	$(CXX) $(OBJS) $(CXXFLAGS) -Ilib/include -Llib/SFML_LINUX/lib -lsfml-graphics -lsfml-window -lsfml-system -o $(NAME)
 
 clean:
 	rm -f $(OBJS)
