@@ -1,7 +1,7 @@
 # CXX = x86_64-w64-mingw32-g++
 CXX = c++
 
-CXXFLAGS = -Wall -Wextra -Werror -I includes/ -g3 -Ilib/include
+CXXFLAGS = -Wall -Wextra -Werror -I includes/ -g3 -Ilib/include -std=c++17
 
 FILES = main.cpp Tetromino.cpp
 
