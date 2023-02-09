@@ -17,6 +17,7 @@ typedef struct game
 	Tetromino tetromino;
 	sf::RectangleShape cell;
 	sf::RenderWindow *window;
+	unsigned char	directionPressed;
 
 }	game_t;
 

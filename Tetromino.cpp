@@ -79,7 +79,8 @@ void Tetromino::updateMatrix(map_t &matrix)
 
 void Tetromino::reset(void)
 {
-	static const unsigned char shapes[] = {I_SHAPE, O_SHAPE, T_SHAPE, L_SHAPE, J_SHAPE, Z_SHAPE, S_SHAPE};
+	static const unsigned char shapes[] = {I_SHAPE, O_SHAPE, T_SHAPE, L_SHAPE,
+											J_SHAPE, Z_SHAPE, S_SHAPE};
 	static std::random_device rd;
 	std::uniform_int_distribution<int> index(0, 6);
 	_type = shapes[index(rd)];

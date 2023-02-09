@@ -62,23 +62,38 @@ void	drawMatrix(map_t &matrix, sf::RenderWindow &window, game_t &game)
 
 void	drawClearedLine(map_t &matrix, game_t &game, int y)
 {
-	// unsigned char timer = 0;
+	unsigned char timer = 0;
 	for (int i = 0; i < WIDTH; ++i)
 	{
 		at(matrix, i, y) = 1;
 	}
 
-	for (int i = 0; i < HEIGHT; ++i)
+	while (timer < 20)
 	{
-		for (int j = 0; j < WIDTH; ++j)
+		for (int i = 0; i < HEIGHT; ++i)
 		{
-			colorCell(at(matrix, j, i), game.cell);
-			game.cell.setPosition(CELL_SIZE * j, CELL_SIZE * i);
-			game.window->draw(game.cell);
+			for (int j = 0; j < WIDTH; ++j)
+			{
+				colorCell(at(matrix, j, i), game.cell);
+				if (at(matrix, j, i) == 1 && i == y)
+				{
+					game.cell.setSize({static_cast<float>((CELL_SIZE - 1) - (timer * 0.25)), static_cast<float>((CELL_SIZE - 1) - (timer * 0.25))});
+					game.cell.setPosition((CELL_SIZE * j + (timer * 0.125)), (CELL_SIZE * i + (timer * 0.125)));
+				}
+				else
+				{
+					game.cell.setSize({CELL_SIZE - 1, CELL_SIZE - 1});
+					game.cell.setPosition((CELL_SIZE * j), (CELL_SIZE * i));
+				}
+				game.window->draw(game.cell);
+			}
 		}
+		game.window->display();
+		sf::sleep(sf::milliseconds(15));
+		game.window->clear();
+		++timer;
+		game.cell.setSize({CELL_SIZE - 1, CELL_SIZE - 1});
 	}
-	game.window->display();
-	sf::sleep(sf::milliseconds(250));
 }
 
 void	clearLine(map_t &matrix, game_t &game, int y)
@@ -124,7 +139,21 @@ void	initGame(game_t &game, sf::RenderWindow *window)
 	game.playing = true;
 	game.tetromino = Tetromino({WIDTH / 2, 0}, game.shapes[time(NULL) % 6], 0);
 	game.cell = sf::RectangleShape(sf::Vector2f(CELL_SIZE - 1, CELL_SIZE - 1));
+	game.directionPressed = 0;
 	game.window = window;
+}
+
+void	moveTetromino(game_t &game, map_t &matrix)
+{
+	switch (game.directionPressed)
+	{
+		case (RIGHT_DIR):
+			game.tetromino.moveRight(matrix); break;
+		case (LEFT_DIR):
+			game.tetromino.moveLeft(matrix); break;
+		default:
+			break;
+	}
 }
 
 int main()
@@ -164,16 +193,19 @@ int main()
 						game.tetromino.moveRight(matrix);
 					else if (event.key.code == sf::Keyboard::Left)
 						game.tetromino.moveLeft(matrix);
-					else if (event.key.code == sf::Keyboard::Down)
+					if (event.key.code == sf::Keyboard::Down)
 						game.gameSpeed = 0;
-					else if (event.key.code == sf::Keyboard::R)
+					if (event.key.code == sf::Keyboard::R)
 						game.tetromino.doRotate(matrix);
-					else if (event.key.code == sf::Keyboard::P)
+					if (event.key.code == sf::Keyboard::P)
 						game.playing = 1 - game.playing;
 					break;
 				case (sf::Event::KeyReleased):
 					if (event.key.code == sf::Keyboard::Down)
 						game.gameSpeed = DEFAULT_GAME_SPEED;
+					else if (event.key.code == sf::Keyboard::Left
+							|| event.key.code == sf::Keyboard::Right)
+						game.directionPressed = 0;
 				default:
 					break;
 			}
@@ -181,6 +213,7 @@ int main()
 
 		window.clear();
 		checkMatrix(matrix, game);
+		moveTetromino(game, matrix);			
 		if (game.playing)
 			drawMatrix(matrix, window, game);
 		if (game.timer > game.gameSpeed && game.playing)
