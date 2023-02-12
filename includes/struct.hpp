@@ -5,7 +5,6 @@
 #include "Tetromino.hpp"
 #include "SFML/Graphics.hpp"
 
-
 typedef struct game
 {
 	unsigned char timer;

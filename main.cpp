@@ -107,7 +107,7 @@ void	clearLine(map_t &matrix, game_t &game, int y)
 	++game.nbLineCleared;
 }
 
-void	resetMatrix(map_t &matrix, unsigned int nbLineCleared)
+void	resetMatrix(map_t &matrix, unsigned int &nbLineCleared)
 {
 	for (int i = 0; i < WIDTH * HEIGHT; ++i)
 		matrix[i] = 0;
@@ -131,16 +131,24 @@ void	checkMatrix(map_t &matrix, game_t &game)
 	}
 }
 
+
+unsigned char	selectNextShape(unsigned const char shapes[])
+{
+	static std::mt19937 gen(time(NULL));
+	return (shapes[gen() % 7]);
+}
+
 void	initGame(game_t &game, sf::RenderWindow *window)
 {
 	game.timer = 0;
 	game.gameSpeed = DEFAULT_GAME_SPEED;
 	game.nbLineCleared = 0;
 	game.playing = true;
-	game.tetromino = Tetromino({WIDTH / 2, 0}, game.shapes[time(NULL) % 6], 0);
+	game.tetromino = Tetromino({WIDTH / 2, 0}, selectNextShape(game.shapes), 0);
 	game.cell = sf::RectangleShape(sf::Vector2f(CELL_SIZE - 1, CELL_SIZE - 1));
 	game.directionPressed = 0;
 	game.window = window;
+	game.tetromino._nextType = game.shapes[(game.tetromino._type + O_SHAPE + I_SHAPE) % 7];
 }
 
 void	moveTetromino(game_t &game, map_t &matrix)
@@ -156,11 +164,77 @@ void	moveTetromino(game_t &game, map_t &matrix)
 	}
 }
 
+void	 drawText(game_t &game, std::string const msg, sf::Vector2f const &pos, float const scale)
+{
+	static sf::Sprite charSprite;
+	static sf::Texture font;
+	static bool firstTime = true;
+	static short size;
+	sf::Vector2f charPos(pos);
+
+	if (firstTime)
+	{
+		font.loadFromFile("Font.png");
+		size = font.getSize().x / 96;
+		charSprite.setTexture(font);
+		firstTime = false;
+	}
+
+	for (char const c : msg)
+	{
+		if (c == '\n')
+		{
+			charPos.x = pos.x;
+			charPos.y += font.getSize().y;
+			continue;
+		}
+		charSprite.setPosition(charPos);
+		charSprite.setTextureRect(sf::IntRect(size * (c - ' '), 0, size, font.getSize().y));
+		charSprite.setScale({scale, scale});
+		charPos.x += size * scale;
+		game.window->draw(charSprite);
+	}
+}
+
+void	textMenu(game_t &game, std::string const msg)
+{
+	game.window->clear();
+	drawText(game, msg, {(WIDTH / 2) * CELL_SIZE, (HEIGHT / 2) * CELL_SIZE}, 0.5);
+	game.window->display();
+}
+
+void	drawNextShape(game_t &game)
+{
+	std::vector<sf::Vector2f> nextTiles = game.tetromino.getTiles(game.tetromino._nextType);
+	game.cell.setPosition((WIDTH + 3) * (CELL_SIZE), CELL_SIZE * 2 - CELL_SIZE / 2);
+	game.cell.setSize({5 * (CELL_SIZE), 5 * (CELL_SIZE )});
+	colorCell(0, game.cell);
+
+	game.window->draw(game.cell);
+
+	game.cell.setSize({CELL_SIZE - 1, CELL_SIZE - 1});
+
+	colorCell(game.tetromino._nextType, game.cell);
+	for (auto &tile : nextTiles)
+	{
+		if (game.tetromino._nextType == O_SHAPE)
+			tile.x += 0.5;
+		else if (game.tetromino._nextType == I_SHAPE)
+		{
+			tile.x -= 0.5;
+			tile.y += 0.5;
+		}
+		game.cell.setPosition(CELL_SIZE * (tile.x + WIDTH), CELL_SIZE * (tile.y + (HEIGHT / 2) - 7));
+		game.window->draw(game.cell);
+	}
+	game.cell.setPosition({(WIDTH + 2) * CELL_SIZE, (HEIGHT / 2) * CELL_SIZE});
+}
+
 int main()
 {
-    sf::RenderWindow window(sf::VideoMode(CELL_SIZE * WIDTH * RESIZE_FACTOR, CELL_SIZE * HEIGHT * RESIZE_FACTOR), "Tetris");
+    sf::RenderWindow window(sf::VideoMode(CELL_SIZE * WIDTH * RESIZE_FACTOR * 2, CELL_SIZE * HEIGHT * RESIZE_FACTOR), "Tetris");
 	window.setFramerateLimit(60);
-	window.setView(sf::View(sf::FloatRect(0, 0, CELL_SIZE * WIDTH, CELL_SIZE * HEIGHT)));
+	window.setView(sf::View(sf::FloatRect(0, 0, CELL_SIZE * WIDTH * 2, CELL_SIZE * HEIGHT)));
 	window.setKeyRepeatEnabled(true);
 
 	map_t matrix = {};
@@ -171,7 +245,6 @@ int main()
 	sf::Sprite	sprite;
     while (window.isOpen())
     {
-
         sf::Event event;
         while (window.pollEvent(event))
         {
@@ -195,6 +268,8 @@ int main()
 						game.tetromino.moveLeft(matrix);
 					if (event.key.code == sf::Keyboard::Down)
 						game.gameSpeed = 0;
+					if (event.key.code == sf::Keyboard::J)
+						game.gameSpeed = 255;
 					if (event.key.code == sf::Keyboard::R)
 						game.tetromino.doRotate(matrix);
 					if (event.key.code == sf::Keyboard::P)
@@ -213,9 +288,14 @@ int main()
 
 		window.clear();
 		checkMatrix(matrix, game);
-		moveTetromino(game, matrix);			
+		moveTetromino(game, matrix);
 		if (game.playing)
+		{
+			drawNextShape(game);
 			drawMatrix(matrix, window, game);
+		}
+		else
+			textMenu(game, "Game Paused\nPress p to continue");
 		if (game.timer > game.gameSpeed && game.playing)
 		{
 			game.tetromino.moveDown(matrix);

@@ -1,6 +1,4 @@
 #include "Tetromino.hpp"
-#include "const.hpp"
-#include <iostream>
 
 Tetromino::Tetromino(void):
 			_pos(sf::Vector2f(WIDTH / 2, 0)), _tiles({
@@ -9,7 +7,7 @@ Tetromino::Tetromino(void):
 											}),_type(O_SHAPE), _rotationState(0) {}
 
 Tetromino::Tetromino(sf::Vector2f pos, unsigned char type, int rotation):
-			_pos(pos), _type(type), _rotationState(rotation)
+			_pos(pos), _type(type), _nextType(type),_rotationState(rotation)
 {
 	switch (_type)
 	{
@@ -77,31 +75,45 @@ void Tetromino::updateMatrix(map_t &matrix)
 		at(matrix, tile.x, tile.y) = _type;
 }
 
-void Tetromino::reset(void)
+std::vector<sf::Vector2f> Tetromino::getTiles(unsigned char type)
+{
+	std::vector<sf::Vector2f> res;
+	switch (type)
+	{
+		case (O_SHAPE):
+			res = {{WIDTH / 2 - 1, 0}, {WIDTH / 2, 0}, {WIDTH / 2, 1}, {WIDTH / 2 - 1, 1}}; break;
+		case (I_SHAPE):
+			res = {{WIDTH / 2 - 1, 0}, {WIDTH / 2, 0}, {WIDTH / 2 + 1, 0}, {WIDTH / 2 + 2, 0}}; break;
+		case (T_SHAPE):
+			res = {{WIDTH / 2  - 1, 0}, {WIDTH / 2 , 0}, {WIDTH / 2  + 1, 0}, {WIDTH / 2, 1}}; break;
+		case (L_SHAPE):
+			res = {{WIDTH / 2  - 1, 0}, {WIDTH / 2 , 0}, {WIDTH / 2  + 1, 0}, {WIDTH / 2 - 1, 1}}; break;
+		case (J_SHAPE):
+			res = {{WIDTH / 2  - 1, 0}, {WIDTH / 2 , 0}, {WIDTH / 2  + 1, 0}, {WIDTH / 2 + 1, 1}}; break;
+		case (Z_SHAPE):
+			res = {{WIDTH / 2  - 1, 0}, {WIDTH / 2 , 0}, {WIDTH / 2, + 1}, {WIDTH / 2 + 1, 1}}; break;
+		case (S_SHAPE):
+			res = {{WIDTH / 2  + 1, 0}, {WIDTH / 2 , 0}, {WIDTH / 2, + 1}, {WIDTH / 2 - 1, 1}}; break;
+	}
+	return (res);
+}
+
+void	Tetromino::switchType(unsigned char const newType)
+{
+	_type = newType;
+	_tiles = getTiles(_type);
+}
+
+unsigned char Tetromino::reset(void)
 {
 	static const unsigned char shapes[] = {I_SHAPE, O_SHAPE, T_SHAPE, L_SHAPE,
 											J_SHAPE, Z_SHAPE, S_SHAPE};
-	static std::random_device rd;
-	std::uniform_int_distribution<int> index(0, 6);
-	_type = shapes[index(rd)];
-	switch (_type)
-	{
-		case (O_SHAPE):
-			_tiles = {{WIDTH / 2 - 1, 0}, {WIDTH / 2, 0}, {WIDTH / 2, 1}, {WIDTH / 2 - 1, 1}}; break;
-		case (I_SHAPE):
-			_tiles = {{WIDTH / 2 - 1, 0}, {WIDTH / 2, 0}, {WIDTH / 2 + 1, 0}, {WIDTH / 2 + 2, 0}}; break;
-		case (T_SHAPE):
-			_tiles = {{WIDTH / 2  - 1, 0}, {WIDTH / 2 , 0}, {WIDTH / 2  + 1, 0}, {WIDTH / 2, 1}}; break;
-		case (L_SHAPE):
-			_tiles = {{WIDTH / 2  - 1, 0}, {WIDTH / 2 , 0}, {WIDTH / 2  + 1, 0}, {WIDTH / 2 - 1, 1}}; break;
-		case (J_SHAPE):
-			_tiles = {{WIDTH / 2  - 1, 0}, {WIDTH / 2 , 0}, {WIDTH / 2  + 1, 0}, {WIDTH / 2 + 1, 1}}; break;
-		case (Z_SHAPE):
-			_tiles = {{WIDTH / 2  - 1, 0}, {WIDTH / 2 , 0}, {WIDTH / 2, + 1}, {WIDTH / 2 + 1, 1}}; break;
-		case (S_SHAPE):
-			_tiles = {{WIDTH / 2  + 1, 0}, {WIDTH / 2 , 0}, {WIDTH / 2, + 1}, {WIDTH / 2 - 1, 1}}; break;
-	}
+	// static std::random_device rd;
+	// std::uniform_int_distribution<int> index(0, 6);
+	switchType(_nextType);
+	_nextType = selectNextShape(shapes);
 	_rotationState = 0;
+	return (_type);
 }
 
 bool Tetromino::basicRotate(bool direction, sf::Vector2f center, map_t &matrix)
