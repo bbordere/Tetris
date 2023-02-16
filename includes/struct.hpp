@@ -17,6 +17,9 @@ typedef struct game
 	sf::RectangleShape cell;
 	sf::RenderWindow *window;
 	unsigned char	directionPressed;
+	unsigned int	score;
+	unsigned int	level;
+	short			fontSize;
 
 }	game_t;
 

@@ -38,6 +38,8 @@ void	colorCell(unsigned char c, sf::RectangleShape &cell)
 	}
 }
 
+
+
 void	drawMatrix(map_t &matrix, sf::RenderWindow &window, game_t &game)
 {
 	for (int i = 0; i < HEIGHT; ++i)
@@ -58,6 +60,116 @@ void	drawMatrix(map_t &matrix, sf::RenderWindow &window, game_t &game)
 		game.cell.setPosition(CELL_SIZE * tile.x, CELL_SIZE * tile.y);
 		window.draw(game.cell);
 	}
+}
+
+
+void	drawNextShape(game_t &game)
+{
+	std::vector<sf::Vector2f> nextTiles = game.tetromino.getTiles(game.tetromino._nextType);
+	game.cell.setPosition((WIDTH + 3) * (CELL_SIZE), CELL_SIZE * 2 - CELL_SIZE / 2);
+	game.cell.setSize({5 * (CELL_SIZE), 5 * (CELL_SIZE )});
+	colorCell(0, game.cell);
+
+	game.window->draw(game.cell);
+
+	game.cell.setSize({CELL_SIZE - 1, CELL_SIZE - 1});
+
+	colorCell(game.tetromino._nextType, game.cell);
+	for (auto &tile : nextTiles)
+	{
+		if (game.tetromino._nextType == O_SHAPE)
+			tile.x += 0.5;
+		else if (game.tetromino._nextType == I_SHAPE)
+		{
+			tile.x -= 0.5;
+			tile.y += 0.5;
+		}
+		game.cell.setPosition(CELL_SIZE * (tile.x + WIDTH), CELL_SIZE * (tile.y + (HEIGHT / 2) - 7));
+		game.window->draw(game.cell);
+	}
+	game.cell.setPosition({(WIDTH + 2) * CELL_SIZE, (HEIGHT / 2) * CELL_SIZE});
+}
+
+void	 drawText(game_t &game, std::string const msg, sf::Vector2f const &pos, float const scale)
+{
+	static sf::Sprite charSprite;
+	static sf::Texture font;
+	static bool firstTime = true;
+	static short size;
+	sf::Vector2f charPos(pos);
+
+	if (firstTime)
+	{
+		font.loadFromFile("font2.png");
+		size = font.getSize().x / 95;
+		game.fontSize = size;
+		charSprite.setTexture(font);
+		firstTime = false;
+	}
+
+	for (char const c : msg)
+	{
+		if (c == '\n')
+		{
+			charPos.x = pos.x;
+			charPos.y += font.getSize().y;
+			continue;
+		}
+		charSprite.setPosition(charPos);
+		charSprite.setTextureRect(sf::IntRect(size * (c - ' '), 0, size, font.getSize().y));
+		charSprite.setScale({scale, scale});
+		charPos.x += size * scale;
+		game.window->draw(charSprite);
+	}
+}
+
+void	drawCenteredText(game_t &game, std::string const text, int initX, int initY, float const scale)
+{
+	short offset = 0;
+	std::size_t len = text.length();
+	if (text == "0")
+		offset = 0;
+	else if (len % 2)
+		offset = ((len / 2) * (game.fontSize * scale));
+	else
+		offset = ((len / 2) * (game.fontSize * scale)) - ((game.fontSize * scale) / 2);
+	drawText(game, text, {static_cast<float>(initX - offset), static_cast<float>(initY)}, scale);
+}
+
+void	drawScoreLevel(game_t &game)
+{
+	const float scale = 0.5;
+	// short offset = 0;
+	// std::string score = std::to_string(game.score);
+	// const int startPosX = ((WIDTH * 1.5) * (game.fontSize * scale)) - ((game.fontSize * scale) / 2);
+	// if (score == "0")
+		// offset = 0;
+	// else if ((score.length() % 2))
+		// offset = ((score.length() / 2) * (game.fontSize * scale));
+	// else
+		// offset = ((score.length() / 2) * (game.fontSize * scale)) - ((game.fontSize * scale) / 2);
+	drawCenteredText(game, "Score:",
+					((WIDTH * 1.5) * (game.fontSize * scale)) - ((game.fontSize * scale) / 2),
+					((HEIGHT - 5) * CELL_SIZE) / 2, 0.30);
+	drawCenteredText(game, std::to_string(game.score),
+					((WIDTH * 1.5) * (game.fontSize * scale)) - ((game.fontSize * scale) / 2),
+					((HEIGHT - 3) * CELL_SIZE) / 2, 0.30);
+
+	drawCenteredText(game, "Level:",
+					((WIDTH * 1.5) * (game.fontSize * scale)) - ((game.fontSize * scale) / 2),
+					((HEIGHT + 1) * CELL_SIZE) / 2, 0.30);
+	drawCenteredText(game, std::to_string(game.level),
+					((WIDTH * 1.5) * (game.fontSize * scale)) - ((game.fontSize * scale) / 2),
+					((HEIGHT + 3) * CELL_SIZE) / 2, 0.30);
+
+	drawCenteredText(game, "Lines:",
+					((WIDTH * 1.5) * (game.fontSize * scale)) - ((game.fontSize * scale) / 2),
+					((HEIGHT + 6) * CELL_SIZE) / 2, 0.30);
+	drawCenteredText(game, std::to_string(game.nbLineCleared),
+					((WIDTH * 1.5) * (game.fontSize * scale)) - ((game.fontSize * scale) / 2),
+					((HEIGHT + 8) * CELL_SIZE) / 2, 0.30);
+	// drawText(game, score, {(float)(startPosX - offset), (HEIGHT * CELL_SIZE) / 2}, scale);
+	// drawText(game, std::to_string(game.score), {(float)(startPosX - offset), ((HEIGHT + 3) * CELL_SIZE) / 2}, scale);
 }
 
 void	drawClearedLine(map_t &matrix, game_t &game, int y)
@@ -88,6 +200,8 @@ void	drawClearedLine(map_t &matrix, game_t &game, int y)
 				game.window->draw(game.cell);
 			}
 		}
+		drawNextShape(game);
+		drawScoreLevel(game);
 		game.window->display();
 		sf::sleep(sf::milliseconds(15));
 		game.window->clear();
@@ -116,6 +230,8 @@ void	resetMatrix(map_t &matrix, unsigned int &nbLineCleared)
 
 void	checkMatrix(map_t &matrix, game_t &game)
 {
+	unsigned char clearedLines = 0;
+	static const unsigned int scores[] = {40, 100, 300, 1200};
 	for (int y = 0; y < HEIGHT; ++y)
 	{
 		int tiles = 0;
@@ -125,10 +241,18 @@ void	checkMatrix(map_t &matrix, game_t &game)
 		{
 			game.playing = false;
 			resetMatrix(matrix, game.nbLineCleared);
+			game.score = 0;
 		}
 		else if (tiles == WIDTH)
+		{
 			clearLine(matrix, game, y);
+			++clearedLines;
+		}
 	}
+	if (clearedLines > 4)
+		clearedLines = 4;
+	if (clearedLines)
+		game.score += scores[clearedLines - 1];
 }
 
 
@@ -149,6 +273,8 @@ void	initGame(game_t &game, sf::RenderWindow *window)
 	game.directionPressed = 0;
 	game.window = window;
 	game.tetromino._nextType = game.shapes[(game.tetromino._type + O_SHAPE + I_SHAPE) % 7];
+	game.score = 0;
+	game.level = 1;
 }
 
 void	moveTetromino(game_t &game, map_t &matrix)
@@ -164,70 +290,11 @@ void	moveTetromino(game_t &game, map_t &matrix)
 	}
 }
 
-void	 drawText(game_t &game, std::string const msg, sf::Vector2f const &pos, float const scale)
-{
-	static sf::Sprite charSprite;
-	static sf::Texture font;
-	static bool firstTime = true;
-	static short size;
-	sf::Vector2f charPos(pos);
-
-	if (firstTime)
-	{
-		font.loadFromFile("Font.png");
-		size = font.getSize().x / 96;
-		charSprite.setTexture(font);
-		firstTime = false;
-	}
-
-	for (char const c : msg)
-	{
-		if (c == '\n')
-		{
-			charPos.x = pos.x;
-			charPos.y += font.getSize().y;
-			continue;
-		}
-		charSprite.setPosition(charPos);
-		charSprite.setTextureRect(sf::IntRect(size * (c - ' '), 0, size, font.getSize().y));
-		charSprite.setScale({scale, scale});
-		charPos.x += size * scale;
-		game.window->draw(charSprite);
-	}
-}
-
 void	textMenu(game_t &game, std::string const msg)
 {
 	game.window->clear();
-	drawText(game, msg, {(WIDTH / 2) * CELL_SIZE, (HEIGHT / 2) * CELL_SIZE}, 0.5);
+	drawText(game, msg, {(WIDTH / 2) * CELL_SIZE, (HEIGHT / 2) * CELL_SIZE}, 0.25);
 	game.window->display();
-}
-
-void	drawNextShape(game_t &game)
-{
-	std::vector<sf::Vector2f> nextTiles = game.tetromino.getTiles(game.tetromino._nextType);
-	game.cell.setPosition((WIDTH + 3) * (CELL_SIZE), CELL_SIZE * 2 - CELL_SIZE / 2);
-	game.cell.setSize({5 * (CELL_SIZE), 5 * (CELL_SIZE )});
-	colorCell(0, game.cell);
-
-	game.window->draw(game.cell);
-
-	game.cell.setSize({CELL_SIZE - 1, CELL_SIZE - 1});
-
-	colorCell(game.tetromino._nextType, game.cell);
-	for (auto &tile : nextTiles)
-	{
-		if (game.tetromino._nextType == O_SHAPE)
-			tile.x += 0.5;
-		else if (game.tetromino._nextType == I_SHAPE)
-		{
-			tile.x -= 0.5;
-			tile.y += 0.5;
-		}
-		game.cell.setPosition(CELL_SIZE * (tile.x + WIDTH), CELL_SIZE * (tile.y + (HEIGHT / 2) - 7));
-		game.window->draw(game.cell);
-	}
-	game.cell.setPosition({(WIDTH + 2) * CELL_SIZE, (HEIGHT / 2) * CELL_SIZE});
 }
 
 int main()
@@ -269,7 +336,7 @@ int main()
 					if (event.key.code == sf::Keyboard::Down)
 						game.gameSpeed = 0;
 					if (event.key.code == sf::Keyboard::J)
-						game.gameSpeed = 255;
+						game.score += 100000;
 					if (event.key.code == sf::Keyboard::R)
 						game.tetromino.doRotate(matrix);
 					if (event.key.code == sf::Keyboard::P)
@@ -289,6 +356,7 @@ int main()
 		window.clear();
 		checkMatrix(matrix, game);
 		moveTetromino(game, matrix);
+		drawScoreLevel(game);
 		if (game.playing)
 		{
 			drawNextShape(game);
