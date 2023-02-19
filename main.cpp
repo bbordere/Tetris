@@ -6,7 +6,7 @@
 #include <array>
 #include <chrono>	
 
-inline unsigned char &at(map_t &map, int x, int y)
+unsigned char &at(map_t &map, int x, int y)
 {
 	return (map[y * WIDTH + x]);
 }
@@ -37,8 +37,6 @@ void	colorCell(unsigned char c, sf::RectangleShape &cell)
 			break;
 	}
 }
-
-
 
 void	drawMatrix(map_t &matrix, sf::RenderWindow &window, game_t &game)
 {
@@ -139,37 +137,26 @@ void	drawCenteredText(game_t &game, std::string const text, int initX, int initY
 void	drawScoreLevel(game_t &game)
 {
 	const float scale = 0.5;
-	// short offset = 0;
-	// std::string score = std::to_string(game.score);
-	// const int startPosX = ((WIDTH * 1.5) * (game.fontSize * scale)) - ((game.fontSize * scale) / 2);
-	// if (score == "0")
-		// offset = 0;
-	// else if ((score.length() % 2))
-		// offset = ((score.length() / 2) * (game.fontSize * scale));
-	// else
-		// offset = ((score.length() / 2) * (game.fontSize * scale)) - ((game.fontSize * scale) / 2);
 	drawCenteredText(game, "Score:",
 					((WIDTH * 1.5) * (game.fontSize * scale)) - ((game.fontSize * scale) / 2),
-					((HEIGHT - 5) * CELL_SIZE) / 2, 0.30);
+					((HEIGHT - 4) * CELL_SIZE) / 2, 0.30);
 	drawCenteredText(game, std::to_string(game.score),
 					((WIDTH * 1.5) * (game.fontSize * scale)) - ((game.fontSize * scale) / 2),
-					((HEIGHT - 3) * CELL_SIZE) / 2, 0.30);
+					((HEIGHT - 2) * CELL_SIZE) / 2, 0.30);
 
 	drawCenteredText(game, "Level:",
 					((WIDTH * 1.5) * (game.fontSize * scale)) - ((game.fontSize * scale) / 2),
-					((HEIGHT + 1) * CELL_SIZE) / 2, 0.30);
+					((HEIGHT + 3) * CELL_SIZE) / 2, 0.30);
 	drawCenteredText(game, std::to_string(game.level),
 					((WIDTH * 1.5) * (game.fontSize * scale)) - ((game.fontSize * scale) / 2),
-					((HEIGHT + 3) * CELL_SIZE) / 2, 0.30);
+					((HEIGHT + 5) * CELL_SIZE) / 2, 0.30);
 
 	drawCenteredText(game, "Lines:",
 					((WIDTH * 1.5) * (game.fontSize * scale)) - ((game.fontSize * scale) / 2),
-					((HEIGHT + 6) * CELL_SIZE) / 2, 0.30);
+					((HEIGHT + 10) * CELL_SIZE) / 2, 0.30);
 	drawCenteredText(game, std::to_string(game.nbLineCleared),
 					((WIDTH * 1.5) * (game.fontSize * scale)) - ((game.fontSize * scale) / 2),
-					((HEIGHT + 8) * CELL_SIZE) / 2, 0.30);
-	// drawText(game, score, {(float)(startPosX - offset), (HEIGHT * CELL_SIZE) / 2}, scale);
-	// drawText(game, std::to_string(game.score), {(float)(startPosX - offset), ((HEIGHT + 3) * CELL_SIZE) / 2}, scale);
+					((HEIGHT + 12) * CELL_SIZE) / 2, 0.30);
 }
 
 void	drawClearedLine(map_t &matrix, game_t &game, int y)
@@ -239,7 +226,7 @@ void	checkMatrix(map_t &matrix, game_t &game)
 			tiles += (at(matrix, x, y) != 0);
 		if (tiles && !y)
 		{
-			game.playing = false;
+			game.reseting = true;
 			resetMatrix(matrix, game.nbLineCleared);
 			game.score = 0;
 		}
@@ -252,7 +239,8 @@ void	checkMatrix(map_t &matrix, game_t &game)
 	if (clearedLines > 4)
 		clearedLines = 4;
 	if (clearedLines)
-		game.score += scores[clearedLines - 1];
+		game.score += scores[clearedLines - 1] * (game.level + 1);
+	game.level = game.nbLineCleared / 10;
 }
 
 
@@ -264,17 +252,20 @@ unsigned char	selectNextShape(unsigned const char shapes[])
 
 void	initGame(game_t &game, sf::RenderWindow *window)
 {
-	game.timer = 0;
-	game.gameSpeed = DEFAULT_GAME_SPEED;
 	game.nbLineCleared = 0;
-	game.playing = true;
+	game.starting = true;
+	game.pausing = false;
+	game.reseting = false;
 	game.tetromino = Tetromino({WIDTH / 2, 0}, selectNextShape(game.shapes), 0);
 	game.cell = sf::RectangleShape(sf::Vector2f(CELL_SIZE - 1, CELL_SIZE - 1));
 	game.directionPressed = 0;
 	game.window = window;
 	game.tetromino._nextType = game.shapes[(game.tetromino._type + O_SHAPE + I_SHAPE) % 7];
 	game.score = 0;
-	game.level = 1;
+	game.dt = sf::Time::Zero;
+	game.elapsedTime = sf::Time::Zero;
+	game.level = 0;
+	game.gameSpeed = sf::Time{sf::seconds(50.f / (100.f + (game.level * game.level * 5.f)))};
 }
 
 void	moveTetromino(game_t &game, map_t &matrix)
@@ -293,8 +284,59 @@ void	moveTetromino(game_t &game, map_t &matrix)
 void	textMenu(game_t &game, std::string const msg)
 {
 	game.window->clear();
-	drawText(game, msg, {(WIDTH / 2) * CELL_SIZE, (HEIGHT / 2) * CELL_SIZE}, 0.25);
+	std::size_t nbLine = msg.find('\n');
+	(void)nbLine;
+	drawText(game, msg, {((WIDTH / 2) * CELL_SIZE), ((HEIGHT / 2) * CELL_SIZE) - (float)(game.fontSize * 0.25)}, 0.25);
 	game.window->display();
+}
+
+void	inputHandling(game_t &game, map_t &matrix)
+{
+	sf::Event event;
+	while (game.window->pollEvent(event))
+	{
+		switch (event.type)
+		{
+			case (sf::Event::Closed):
+				game.window->close(); break;
+			case (sf::Event::MouseButtonPressed):
+			{
+				int x = sf::Mouse::getPosition(*game.window).x / CELL_SIZE / RESIZE_FACTOR;
+				int y = sf::Mouse::getPosition(*game.window).y / CELL_SIZE / RESIZE_FACTOR;
+				at(matrix, x, y) = 1 - at(matrix, x, y);
+				break;
+			}
+			case (sf::Event::KeyPressed):
+				if (event.key.code == sf::Keyboard::Enter)
+				{
+					game.starting = false;
+					game.reseting = false;
+				}
+				if (game.pausing && event.key.code != sf::Keyboard::P)
+					break;
+				if (event.key.code == sf::Keyboard::Right)
+					game.tetromino.moveRight(matrix);
+				else if (event.key.code == sf::Keyboard::Left)
+					game.tetromino.moveLeft(matrix);
+				if (event.key.code == sf::Keyboard::Down)
+					game.gameSpeed = sf::Time{sf::seconds(5.f / (150.f + (5.f)))};
+				if (event.key.code == sf::Keyboard::J)
+					++game.nbLineCleared;
+				if (event.key.code == sf::Keyboard::R)
+					game.tetromino.doRotate(matrix);
+				if (event.key.code == sf::Keyboard::P)
+					game.pausing = 1 - game.pausing;
+				break;
+			case (sf::Event::KeyReleased):
+				if (event.key.code == sf::Keyboard::Down)
+					game.gameSpeed = sf::Time{sf::seconds(50.f / (100.f + (game.level * game.level * 5.f)))};
+				else if (event.key.code == sf::Keyboard::Left
+						|| event.key.code == sf::Keyboard::Right)
+					game.directionPressed = 0;
+			default:
+				break;
+		}
+	}
 }
 
 int main()
@@ -302,81 +344,46 @@ int main()
     sf::RenderWindow window(sf::VideoMode(CELL_SIZE * WIDTH * RESIZE_FACTOR * 2, CELL_SIZE * HEIGHT * RESIZE_FACTOR), "Tetris");
 	window.setFramerateLimit(60);
 	window.setView(sf::View(sf::FloatRect(0, 0, CELL_SIZE * WIDTH * 2, CELL_SIZE * HEIGHT)));
-	window.setKeyRepeatEnabled(true);
 
 	map_t matrix = {};
 	game_t game;
 	initGame(game, &window);
-
-	sf::Texture texture;
-	sf::Sprite	sprite;
-    while (window.isOpen())
+	std::cout << game.starting << '\n';
+	while (window.isOpen())
     {
-        sf::Event event;
-        while (window.pollEvent(event))
-        {
-			switch (event.type)
-			{
-				case (sf::Event::Closed):
-					window.close(); break;
-				case (sf::Event::MouseButtonPressed):
-				{
-					int x = sf::Mouse::getPosition(window).x / CELL_SIZE / RESIZE_FACTOR;
-					int y = sf::Mouse::getPosition(window).y / CELL_SIZE / RESIZE_FACTOR;
-					at(matrix, x, y) = 1 - at(matrix, x, y);
-					break;
-				}
-				case (sf::Event::KeyPressed):
-					if (!game.playing && event.key.code != sf::Keyboard::P)
-						break;
-					if (event.key.code == sf::Keyboard::Right)
-						game.tetromino.moveRight(matrix);
-					else if (event.key.code == sf::Keyboard::Left)
-						game.tetromino.moveLeft(matrix);
-					if (event.key.code == sf::Keyboard::Down)
-						game.gameSpeed = 0;
-					if (event.key.code == sf::Keyboard::J)
-						game.score += 100000;
-					if (event.key.code == sf::Keyboard::R)
-						game.tetromino.doRotate(matrix);
-					if (event.key.code == sf::Keyboard::P)
-						game.playing = 1 - game.playing;
-					break;
-				case (sf::Event::KeyReleased):
-					if (event.key.code == sf::Keyboard::Down)
-						game.gameSpeed = DEFAULT_GAME_SPEED;
-					else if (event.key.code == sf::Keyboard::Left
-							|| event.key.code == sf::Keyboard::Right)
-						game.directionPressed = 0;
-				default:
-					break;
-			}
-        }
-
-		window.clear();
+		game.trigger = sf::Time{game.gameSpeed};
+		game.dt = game.clock.restart();
+		game.elapsedTime += game.dt;
+		inputHandling(game, matrix);
+		if (game.starting)
+		{
+			textMenu(game, "Welcome to tetris\nPress Enter to play");
+			continue;
+		}
+		else if (game.reseting)
+		{
+			textMenu(game, "Game Over !\nPress Enter to replay");
+			continue;
+		}
+    	window.clear();
 		checkMatrix(matrix, game);
 		moveTetromino(game, matrix);
 		drawScoreLevel(game);
-		if (game.playing)
+		if (!game.pausing)
 		{
 			drawNextShape(game);
 			drawMatrix(matrix, window, game);
 		}
 		else
 			textMenu(game, "Game Paused\nPress p to continue");
-		if (game.timer > game.gameSpeed && game.playing)
+		if (game.elapsedTime > game.trigger && !game.pausing)
 		{
 			game.tetromino.moveDown(matrix);
-			game.timer = 0;
+			game.elapsedTime = sf::Time::Zero;
 		}
-		else
-			game.timer++;
 		window.display();
 		// sf::sleep(sf::milliseconds(200));
     }
 
     return 0;
 }
-
-
-// c++ main.cpp -lsfml-graphics -lsfml-window -lsfml-system -I../includes -Ofast
